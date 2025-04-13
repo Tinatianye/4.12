@@ -144,10 +144,13 @@ csv_bytes = export_df.to_csv(index=False).encode("utf-8")
 melted = combined_df.melt("Date", var_name="Series", value_name="USD/ton")
 
 filter_terms = []
+filter_terms = []
 if "China" in selected_countries:
     filter_terms += ["China HRC (FOB, $/t) Historical", "China HRC (FOB, $/t) Forecast", "China Upside/Downside"]
 if "Japan" in selected_countries:
-    filter_terms += ["Japan HRC (FOB, $/t) Historical", "Japan HRC (FOB, $/t) Forecast"]
+    filter_terms += ["Japan HRC (FOB, $/t) Historical", "Japan HRC (FOB, $/t) Forecast"]  
+    filter_terms += ["Japan HRC (FOB, $/t) Historical"]  
+
 
 melted = melted[melted["Series"].isin(filter_terms)]
 
