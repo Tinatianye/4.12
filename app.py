@@ -120,6 +120,18 @@ combined_df.rename(columns={
     "Japan Upside/Downside": "Japan HRC (FOB, $/t) Forecast"
 }, inplace=True)
 
+forecast_only = combined_df[combined_df["Date"] >= "2024-11-01"]
+
+export_df = forecast_only[["Date", "China HRC (FOB, $/t) Forecast", "Japan HRC (FOB, $/t) Forecast"]].copy()
+export_df.rename(columns={
+    "Date": "Month",
+    "China HRC (FOB, $/t) Forecast": "China HRC Price",
+    "Japan HRC (FOB, $/t) Forecast": "Japan HRC Price"
+}, inplace=True)
+
+csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+
+
 melted = combined_df.melt("Date", var_name="Series", value_name="USD/ton")
 
 filter_terms = []
@@ -144,6 +156,14 @@ chart = alt.Chart(melted).mark_line().encode(
 
 
 st.altair_chart(chart, use_container_width=True)
+
+st.download_button(
+    label="📥 Download Forecast Values as CSV",
+    data=csv_bytes,
+    file_name="hrc_forecast.csv",
+    mime="text/csv"
+)
+
 
 # --- India Landed Price Calculator ---
 st.subheader("🇮🇳 India Landed Price Calculator")
