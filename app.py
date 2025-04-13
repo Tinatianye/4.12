@@ -89,7 +89,15 @@ st.pyplot(fig)
 
 # --- CSV Download ---
 forecast_df = df_full.copy()
-forecast_df.set_index("Date", inplace=True)
+
+if forecast_df.index.name == "Date":
+    forecast_df.reset_index(inplace=True)
+
+if "Date" in forecast_df.columns:
+    forecast_df.set_index("Date", inplace=True)
+else:
+    st.error("❌ 'Date' column not found in data.")
+
 latest = forecast_df["HRC (FOB, $/t)"].dropna().iloc[-1]
 forecast_months = pd.date_range(start=forecast_df.index[-1] + pd.DateOffset(months=1), periods=months, freq="MS")
 china_forecast = [latest * (1 + (i / 100)) for i in range(months)]
