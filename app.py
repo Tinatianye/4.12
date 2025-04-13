@@ -72,7 +72,7 @@ area_japan = base.mark_area(opacity=0.2, color="#f08080").encode(
 line_japan_forecast = base.mark_line(strokeDash=[4, 2], color="#4682b4").encode(y="Japan Forecast:Q")
 line_japan_hist = alt.Chart(df_hist.reset_index()).mark_line(color="#888").encode(x="Date:T", y="Japan Historical:Q")
 
-chart = (line_china_hist + line_japan_hist + area_china + area_japan + line_china_forecast + line_japan_forecast).properties(
+chart = (line_china_hist + line_china_forecast + area_china + line_japan_hist + line_japan_forecast + area_japan).properties(
     width=900, height=450
 )
 st.altair_chart(chart, use_container_width=True)
@@ -80,4 +80,3 @@ st.altair_chart(chart, use_container_width=True)
 # --- Footer ---
 st.markdown("---")
 st.markdown("Built by Ye Tian for TATA Steel, 2025.")
-
