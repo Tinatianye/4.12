@@ -180,8 +180,3 @@ mumbai_port_rs_jp = port_price_jp * exchange_rate_jp
 mumbai_market_rs_jp = mumbai_port_rs_jp + freight_to_city_jp
 
 st.markdown(f"**Japan HRC Basic Landed @ Mumbai Market: ₹ {mumbai_market_rs_jp:.2f}/t**")
-
-# --- Footer ---
-st.markdown("---")
-st.markdown("Built by Ye Tian for TATA Steel, 2025.")
-forecast_series.index <= end_date
