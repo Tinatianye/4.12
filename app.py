@@ -124,7 +124,7 @@ chart = alt.Chart(melted).mark_line().encode(
         alt.Tooltip('Date:T', title='Date'),
         alt.Tooltip('USD/ton:Q', title='Price (USD/t)')
     ]
-).properties(width=900, height=450)
+).properties(width=900, height=450).interactive()
 
 
 st.altair_chart(chart, use_container_width=True)
