@@ -50,6 +50,13 @@ def build_combined_forecast(months_ahead):
 
 # --- Sidebar ---
 st.sidebar.header("Options")
+
+# Parameter options
+iron_ore = st.sidebar.selectbox("Iron Ore", ["Upside", "Downside"])
+hcc = st.sidebar.selectbox("HCC", ["Upside", "Downside"])
+scrap = st.sidebar.selectbox("Scrap", ["Upside", "Downside"])
+export = st.sidebar.selectbox("Export", ["Upside", "Downside"])
+fai = st.sidebar.selectbox("FAI", ["Upside", "Downside"])
 months = st.sidebar.slider("Months ahead to forecast", min_value=3, max_value=18, value=12)
 
 # --- Title ---
