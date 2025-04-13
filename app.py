@@ -28,27 +28,26 @@ def build_combined_forecast(months_ahead, up_adj, down_adj):
     china_hist = china_actual[china_actual.index < start_date].to_frame(name="China HRC (FOB, $/t) Historical")
 
     # Upside forecast (VAR-based with adjustments)
-    china_up = china_var_forecast[(china_var_forecast.index >= start_date) & (china_var_forecast.index <= end_date)]
+    china_up = china_var_forecast[(china_var_forecast.index >= start_date) & (china_var_forecast.index <= end_date)].copy()
     for key, pct in up_adj.items():
         if pct > 0:
             china_up *= (1 + pct / 100)
     china_up = china_up.to_frame(name="China Upside/Downside")
 
     # Downside forecast (MLR-based with adjustments)
-    china_down = china_mlr_forecast[(china_mlr_forecast.index >= start_date) & (china_mlr_forecast.index <= end_date)]
+    china_down = china_mlr_forecast[(china_mlr_forecast.index >= start_date) & (china_mlr_forecast.index <= end_date)].copy()
     for key, pct in down_adj.items():
         if pct > 0:
             china_down *= (1 - pct / 100)
     china_down = china_down.to_frame(name="China Downside")
 
-    # Japan forecast adjusted by Iron Ore only
-    japan_forecast = df_japan["Japan_HRC_f"]
-    japan_hist = df_base["Japan HRC FOB"] if "Japan HRC FOB" in df_base.columns else None
-    japan_up = japan_forecast[(japan_forecast.index >= start_date) & (japan_forecast.index <= end_date)]
+    # Japan forecast (aligned to same date range)
+    forecast_index = pd.date_range(start=start_date, end=end_date, freq="MS")
+    japan_up = df_japan["Japan_HRC_f"].reindex(forecast_index)
     japan_up = japan_up * (1 + up_adj.get("Iron Ore", 0) / 100)
-    japan_up = japan_up.to_frame(name="Japan Upside/Downside")
+    japan_up = japan_up.to_frame(name="Japan HRC (FOB, $/t) Forecast")
 
-    # Combine
+    # Combine all
     combined = pd.concat([
         china_hist,
         china_up,
@@ -56,11 +55,14 @@ def build_combined_forecast(months_ahead, up_adj, down_adj):
         japan_up
     ], axis=1)
 
-    if japan_hist is not None:
+    if "Japan HRC FOB" in df_base.columns:
+        japan_hist = df_base["Japan HRC FOB"]
+        japan_hist = japan_hist[japan_hist.index < start_date]
         combined = combined.join(japan_hist.to_frame(name="Japan HRC (FOB, $/t) Historical"), how="left")
 
     combined.reset_index(inplace=True)
     return combined
+
 
 # --- Sidebar ---
 st.sidebar.header("Model Parameters")
