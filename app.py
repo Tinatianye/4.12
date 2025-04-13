@@ -6,13 +6,18 @@ from datetime import datetime
 # Set page config
 st.set_page_config(page_title="HRC Price Forecast Dashboard", layout="wide")
 
-# --- Custom Dashboard Title ---
+
+# --- TATA Logo + Dashboard Title ---
 st.markdown("""
-    <div style='text-align: center; padding: 1rem 0; background-color: #0E539A; color: white; border-radius: 8px;'>
-        <h1 style='margin-bottom: 0.3rem;'>HRC Price Predict Model Dashboard</h1>
-        <p style='font-size: 18px;'>For TATA Steel | Forecasting & Landed Cost Analytics</p>
+    <div style='display: flex; align-items: center; justify-content: center; padding: 1rem 0; background-color: #0E539A; color: white; border-radius: 8px;'>
+        <img src='https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Tata_logo.svg/2560px-Tata_logo.svg.png' style='height: 50px; margin-right: 15px;' />
+        <div>
+            <h1 style='margin: 0;'>HRC Price Predict Model Dashboard</h1>
+            <p style='margin: 0; font-size: 18px;'>For TATA Steel | Forecasting & Landed Cost Analytics</p>
+        </div>
     </div>
 """, unsafe_allow_html=True)
+
 
 
 # --- Load Data ---
