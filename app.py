@@ -119,7 +119,6 @@ chart = alt.Chart(melted).mark_line().encode(
     x='Date:T',
     y=alt.Y('USD/ton:Q', title='Price (USD per ton)'),
     color='Series:N',
-    strokeDash='Series:N',
     tooltip=['Date:T', 'Series:N', 'USD/ton:Q']
 ).properties(width=900, height=450)
 
