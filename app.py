@@ -31,17 +31,23 @@ def build_combined_forecast_with_bounds(months_ahead, up_pct, down_pct):
     china_center["China Lower"] = china_center["China Forecast"] * (1 - down_pct / 100)
 
     japan_forecast = df_japan["Japan_HRC_f"]
-    japan_hist = df_base["Japan HRC FOB"] if "Japan HRC FOB" in df_base.columns else None
     japan_future = japan_forecast[(japan_forecast.index >= start_date) & (japan_forecast.index <= end_date)]
     japan_center = japan_future.to_frame(name="Japan Forecast")
     japan_center["Japan Upper"] = japan_center["Japan Forecast"] * (1 + up_pct / 100)
     japan_center["Japan Lower"] = japan_center["Japan Forecast"] * (1 - down_pct / 100)
 
+    # Handle Japan historical safely
+    if "Japan HRC FOB" in df_base.columns:
+        japan_hist = df_base["Japan HRC FOB"]
+        japan_hist = japan_hist[japan_hist.index < start_date].to_frame(name="Japan Historical")
+    else:
+        japan_hist = pd.DataFrame(index=china_center.index)
+
     df_plot = pd.concat([
         china_hist,
         china_center,
         japan_center,
-        japan_hist.to_frame(name="Japan Historical") if japan_hist is not None else None
+        japan_hist
     ], axis=1)
     df_plot.reset_index(inplace=True)
     return df_plot
