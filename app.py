@@ -203,8 +203,25 @@ selected_japan_fob = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0] if 
 st.subheader("🇮🇳 India Landed Price Calculator")
 
 st.markdown("**China Table**")
-selected_china_fob = selected_row["China HRC (FOB, $/t) Forecast"].values[0] if not selected_row.empty and not pd.isna(selected_row["China HRC (FOB, $/t) Forecast"].values[0]) else 0.0
-selected_japan_fob = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0] if not selected_row.empty and not pd.isna(selected_row["Japan HRC (FOB, $/t) Forecast"].values[0]) else 0.0
+selected_china_fob = 0.0
+selected_japan_fob = 0.0
+
+if not selected_row.empty:
+    try:
+        val = selected_row["China HRC (FOB, $/t) Forecast"].values[0]
+        if pd.notna(val):
+            selected_china_fob = float(val)
+    except (KeyError, IndexError, ValueError):
+        selected_china_fob = 0.0
+
+if not selected_row.empty:
+    try:
+        val = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0]
+        if pd.notna(val):
+            selected_japan_fob = float(val)
+    except (KeyError, IndexError, ValueError):
+        selected_japan_fob = 0.0
+
 freight = st.number_input("Sea Freight ($/t)", value=30.0)
 customs_pct = st.number_input("Basic Customs Duty (%)", value=7.5)
 sgd = st.number_input("Applicable SGD ($/t)", value=0.0)
