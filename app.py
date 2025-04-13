@@ -99,6 +99,13 @@ downside_adjustments = {
     "FAI": down_fai
 }
 
+st.sidebar.markdown("**Country Selection**")
+selected_countries = st.sidebar.multiselect(
+    "Select country to view:",
+    options=["China", "Japan"],
+    default=["China", "Japan"]
+)
+
 # --- Title ---
 st.title("Forecasting HRC Prices")
 st.markdown("### with Historical Data + Upside/Downside")
@@ -114,6 +121,15 @@ combined_df.rename(columns={
 }, inplace=True)
 
 melted = combined_df.melt("Date", var_name="Series", value_name="USD/ton")
+
+filter_terms = []
+if "China" in selected_countries:
+    filter_terms += ["China HRC (FOB, $/t) Historical", "China HRC (FOB, $/t) Forecast", "China Upside/Downside"]
+if "Japan" in selected_countries:
+    filter_terms += ["Japan HRC (FOB, $/t) Historical", "Japan HRC (FOB, $/t) Forecast"]
+
+melted = melted[melted["Series"].isin(filter_terms)]
+
 
 chart = alt.Chart(melted).mark_line().encode(
     x='Date:T',
