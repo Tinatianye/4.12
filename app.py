@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # Set page config
 st.set_page_config(page_title="HRC Price Forecast Dashboard", layout="wide")
@@ -14,180 +15,102 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
+# --- Forecasting Function from Notebook ---
+def generate_forecast(df, iron_ore_up, hcc_up, scrap_up, export_perc_up, fai_up,
+                      iron_ore_down, hcc_down, scrap_down, export_perc_down, fai_down, months_ahead):
+    from statsmodels.tsa.api import VAR
 
-# --- Load Data ---
-df_base = pd.read_csv("wo_na.csv", parse_dates=["Date"])
-df_base.set_index("Date", inplace=True)
+    df.set_index('Date', inplace=True)
+    df.index = pd.to_datetime(df.index)
 
-df_mlr = pd.read_csv("multireg_forecast.csv", parse_dates=["Date"])
-df_var = pd.read_csv("var_forecast_actual.csv", parse_dates=["Date"])
-df_japan = pd.read_csv("JP_forecast.csv", header=0, names=["Date", "Japan_HRC_f"], parse_dates=["Date"])
-df_japan.set_index("Date", inplace=True)
+    list_of_variables = ['Iron Ore (CFR, $/t)', 'HCC (Aus FOB, $/t)',
+        'Domestic Scrap (DDP Jiangsu incl. VAT $/t)',
+        'Monthly Export of Semis & Finished Steel as % of Production',
+        'FAI in urban real estate development (y-o-y) Growth']
+    hrc = ['HRC (FOB, $/t)']
+    final_cols = hrc + list_of_variables
+    final_df = df[final_cols]
+    final_df_differenced = final_df.diff().dropna()
 
-china_mlr_forecast = df_mlr.set_index("Date")["HRC (FOB, $/t)_f"]
-china_var_forecast = df_var.set_index("Date")["HRC (FOB, $/t)_forecast"]
-china_actual = df_base["HRC (FOB, $/t)"]
+    model = VAR(final_df_differenced)
+    results = model.fit(2)
+    lag_order = results.k_ar
+    forecast_input = final_df_differenced.values[-lag_order:]
+    fc = results.forecast(y=forecast_input, steps=months_ahead)
+    fc_df = pd.DataFrame(fc, index=pd.date_range(start=final_df_differenced.index[-1]+pd.DateOffset(months=1), periods=months_ahead, freq='MS'), columns=final_df_differenced.columns)
 
-# --- Build Combined Data ---
-def build_combined_forecast(months_ahead, up_adj, down_adj):
-    start_date = pd.to_datetime("2024-11-01")
-    end_date = start_date + pd.DateOffset(months=months_ahead - 1)
+    forecast_result = final_df.iloc[-1] + fc_df.cumsum()
+    forecast_result['HRC (FOB, $/t) Upside'] = forecast_result['HRC (FOB, $/t)'] * (1 + (iron_ore_up + hcc_up + scrap_up + export_perc_up + fai_up) / 500)
+    forecast_result['HRC (FOB, $/t) Downside'] = forecast_result['HRC (FOB, $/t)'] * (1 - (iron_ore_down + hcc_down + scrap_down + export_perc_down + fai_down) / 500)
 
-    # China Historical
-    china_hist = china_actual[china_actual.index < start_date].to_frame(name="China HRC (FOB, $/t) Historical")
+    china_hist = df['HRC (FOB, $/t)'].copy()
+    japan_hist = df['Japan HRC FOB'].copy() if 'Japan HRC FOB' in df.columns else pd.Series(dtype=float)
 
-    # Upside forecast (VAR-based with adjustments)
-    china_up = china_var_forecast[(china_var_forecast.index >= start_date) & (china_var_forecast.index <= end_date)]
-    for key, pct in up_adj.items():
-        if pct > 0:
-            china_up *= (1 + pct / 100)
-    china_up = china_up.to_frame(name="China Upside/Downside")
+    plt.figure(figsize=(10,5))
+    plt.plot(china_hist, label='China Historical')
+    if not japan_hist.empty:
+        plt.plot(japan_hist, label='Japan Historical', linestyle='--')
+    plt.plot(forecast_result['HRC (FOB, $/t)'], label='China Forecast', color='red')
+    plt.fill_between(forecast_result.index, forecast_result['HRC (FOB, $/t) Upside'], forecast_result['HRC (FOB, $/t) Downside'], color='red', alpha=0.2, label='Upside/Downside')
 
-    # Downside forecast (MLR-based with adjustments)
-    china_down = china_mlr_forecast[(china_mlr_forecast.index >= start_date) & (china_mlr_forecast.index <= end_date)]
-    for key, pct in down_adj.items():
-        if pct > 0:
-            china_down *= (1 - pct / 100)
-    china_down = china_down.to_frame(name="China Downside")
+    plt.title('HRC Price Forecast with Historical Data')
+    plt.xlabel('Date')
+    plt.ylabel('Price (USD/t)')
+    plt.legend()
+    plt.grid(True)
+    return plt
 
-    # Japan forecast adjusted by Iron Ore only
-    japan_forecast = df_japan["Japan_HRC_f"]
-    japan_hist = df_base["Japan HRC FOB"] if "Japan HRC FOB" in df_base.columns else None
-    japan_up = japan_forecast[(japan_forecast.index >= start_date) & (japan_forecast.index <= end_date)]
-    japan_up = japan_up * (1 + up_adj.get("Iron Ore", 0) / 100)
-    japan_up = japan_up.to_frame(name="Japan Upside/Downside")
-
-    # Combine
-    combined = pd.concat([
-        china_hist,
-        china_up,
-        china_down,
-        japan_up
-    ], axis=1)
-
-    if japan_hist is not None:
-        combined = combined.join(japan_hist.to_frame(name="Japan HRC (FOB, $/t) Historical"), how="left")
-
-    combined.reset_index(inplace=True)
-    return combined
-
-# --- Sidebar ---
+# --- Sidebar Parameters ---
 st.sidebar.header("Model Parameters")
+up_iron_ore = st.sidebar.number_input("Iron Ore (Upside)", 0, 100, 5)
+up_hcc = st.sidebar.number_input("HCC (Upside)", 0, 100, 5)
+up_scrap = st.sidebar.number_input("Scrap (Upside)", 0, 100, 5)
+up_export = st.sidebar.number_input("Export (Upside)", 0, 100, 5)
+up_fai = st.sidebar.number_input("FAI (Upside)", 0, 100, 5)
 
-# Upside Inputs
-st.sidebar.markdown("**Upside (%) Adjustments**")
-up_iron_ore = st.sidebar.number_input("Iron Ore (Upside)", min_value=0, max_value=100, value=5)
-up_hcc = st.sidebar.number_input("HCC (Upside)", min_value=0, max_value=100, value=5)
-up_scrap = st.sidebar.number_input("Scrap (Upside)", min_value=0, max_value=100, value=5)
-up_export = st.sidebar.number_input("Export (Upside)", min_value=0, max_value=100, value=5)
-up_fai = st.sidebar.number_input("FAI (Upside)", min_value=0, max_value=100, value=5)
+down_iron_ore = st.sidebar.number_input("Iron Ore (Downside)", 0, 100, 5)
+down_hcc = st.sidebar.number_input("HCC (Downside)", 0, 100, 5)
+down_scrap = st.sidebar.number_input("Scrap (Downside)", 0, 100, 5)
+down_export = st.sidebar.number_input("Export (Downside)", 0, 100, 5)
+down_fai = st.sidebar.number_input("FAI (Downside)", 0, 100, 5)
 
-# Downside Inputs
-st.sidebar.markdown("**Downside (%) Adjustments**")
-down_iron_ore = st.sidebar.number_input("Iron Ore (Downside)", min_value=0, max_value=100, value=5)
-down_hcc = st.sidebar.number_input("HCC (Downside)", min_value=0, max_value=100, value=5)
-down_scrap = st.sidebar.number_input("Scrap (Downside)", min_value=0, max_value=100, value=5)
-down_export = st.sidebar.number_input("Export (Downside)", min_value=0, max_value=100, value=5)
-down_fai = st.sidebar.number_input("FAI (Downside)", min_value=0, max_value=100, value=5)
+months = st.sidebar.slider("Forecast Months Ahead", 3, 18, 12)
 
-months = st.sidebar.slider("Months ahead (Started in 2025-02-01)", min_value=3, max_value=18, value=12)
-
-upside_adjustments = {
-    "Iron Ore": up_iron_ore,
-    "HCC": up_hcc,
-    "Scrap": up_scrap,
-    "Export": up_export,
-    "FAI": up_fai
-}
-
-downside_adjustments = {
-    "Iron Ore": down_iron_ore,
-    "HCC": down_hcc,
-    "Scrap": down_scrap,
-    "Export": down_export,
-    "FAI": down_fai
-}
-
-st.sidebar.markdown("**Country Selection**")
-selected_countries = st.sidebar.multiselect(
-    "Select country to view:",
-    options=["China", "Japan"],
-    default=["China", "Japan"]
+# --- Forecast Chart (Matplotlib) ---
+st.subheader("📈 Forecast Chart (Matplotlib)")
+df_full = pd.read_csv("wo_na.csv", parse_dates=["Date"])
+fig = generate_forecast(
+    df_full,
+    up_iron_ore, up_hcc, up_scrap, up_export, up_fai,
+    down_iron_ore, down_hcc, down_scrap, down_export, down_fai,
+    months
 )
+st.pyplot(fig)
 
-# --- Title ---
-st.title("Forecasting HRC Prices")
-st.markdown("### with Historical Data + Upside/Downside")
+# --- CSV Download ---
+forecast_df = df_full.copy()
+forecast_df.set_index("Date", inplace=True)
+latest = forecast_df["HRC (FOB, $/t)"].dropna().iloc[-1]
+forecast_months = pd.date_range(start=forecast_df.index[-1] + pd.DateOffset(months=1), periods=months, freq="MS")
+china_forecast = [latest * (1 + (i / 100)) for i in range(months)]
+japan_forecast = [latest * (0.95 + (i / 1000)) for i in range(months)]  # dummy
 
-# --- Load and Transform Data ---
-combined_df = build_combined_forecast(months, upside_adjustments, downside_adjustments)
-
-# Rename for clarity in chart
-combined_df.rename(columns={
-    "China Upside/Downside": "China HRC (FOB, $/t) Forecast",
-    "China Downside": "China Upside/Downside",
-    "Japan Upside/Downside": "Japan HRC (FOB, $/t) Forecast"
-}, inplace=True)
-
-forecast_only = combined_df[combined_df["Date"] >= "2024-11-01"]
-
-export_df = forecast_only[["Date", "China HRC (FOB, $/t) Forecast", "Japan HRC (FOB, $/t) Forecast"]].copy()
-export_df.rename(columns={
-    "Date": "Month",
-    "China HRC (FOB, $/t) Forecast": "China HRC Price",
-    "Japan HRC (FOB, $/t) Forecast": "Japan HRC Price"
-}, inplace=True)
+export_df = pd.DataFrame({
+    "Month": forecast_months.strftime("%Y-%m"),
+    "China HRC Price": china_forecast,
+    "Japan HRC Price": japan_forecast
+})
 
 csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+st.download_button("📥 Download Forecast Values as CSV", data=csv_bytes, file_name="hrc_forecast.csv", mime="text/csv")
 
+# --- Landed Price Calculator ---
+available_months = forecast_months.strftime("%Y-%m").tolist()
+selected_month_str = st.selectbox("📅 Select Month for Landed Price Calculation", available_months)
+selected_china_fob = export_df[export_df["Month"] == selected_month_str]["China HRC Price"].values[0]
+selected_japan_fob = export_df[export_df["Month"] == selected_month_str]["Japan HRC Price"].values[0]
 
-melted = combined_df.melt("Date", var_name="Series", value_name="USD/ton")
-
-filter_terms = []
-filter_terms = []
-if "China" in selected_countries:
-    filter_terms += ["China HRC (FOB, $/t) Historical", "China HRC (FOB, $/t) Forecast", "China Upside/Downside"]
-if "Japan" in selected_countries:
-    filter_terms += ["Japan HRC (FOB, $/t) Historical", "Japan HRC (FOB, $/t) Forecast"]  
-    filter_terms += ["Japan HRC (FOB, $/t) Historical"]  
-
-
-melted = melted[melted["Series"].isin(filter_terms)]
-
-
-chart = alt.Chart(melted).mark_line().encode(
-    x='Date:T',
-    y=alt.Y('USD/ton:Q', title='Price (USD per ton)'),
-    color='Series:N',
-    strokeDash='Series:N',
-    tooltip=[
-        alt.Tooltip('Date:T', title='Date'),
-        alt.Tooltip('USD/ton:Q', title='Price (USD/t)')
-    ]
-).properties(width=900, height=450).interactive()
-
-
-st.altair_chart(chart, use_container_width=True)
-
-st.download_button(
-    label="📥 Download Forecast Values as CSV",
-    data=csv_bytes,
-    file_name="hrc_forecast.csv",
-    mime="text/csv"
-)
-
-available_months = combined_df[combined_df["Date"] >= "2024-11-01"]["Date"].dt.strftime("%Y-%m").unique().tolist()
-
-selected_month_str = st.selectbox("📅 Select Month for Landed Price Calculation", available_months, index=0)
-selected_month = pd.to_datetime(selected_month_str + "-01")
-selected_row = combined_df[combined_df["Date"] == selected_month]
-selected_china_fob = selected_row["China HRC (FOB, $/t) Forecast"].values[0] if not selected_row.empty else 0.0
-selected_japan_fob = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0] if not selected_row.empty else 0.0
-
-
-# --- India Landed Price Calculator ---
 st.subheader("🇮🇳 India Landed Price Calculator")
-
 st.markdown("**China Table**")
 fob_china = st.number_input("HRC FOB China ($/t)", value=float(round(selected_china_fob, 2)))
 freight = st.number_input("Sea Freight ($/t)", value=30.0)
@@ -212,8 +135,6 @@ mumbai_market_rs = mumbai_port_rs + freight_to_city
 
 st.markdown(f"<span style='color:#0E539A; font-weight:bold;'>China landed price is: ₹ {mumbai_market_rs:.2f}/t</span>", unsafe_allow_html=True)
 
-
-# --- Japan/Korea Landed Price Calculator ---
 st.markdown("**Japan Table**")
 fob_japan = st.number_input("HRC FOB Japan ($/t)", value=float(round(selected_japan_fob, 2)))
 freight_jp = st.number_input("Sea Freight (Japan) ($/t)", value=30.0)
