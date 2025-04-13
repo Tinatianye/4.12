@@ -154,8 +154,7 @@ port_price = landed_value + sgd + mip + safeguard_duty_abs
 mumbai_port_rs = port_price * exchange_rate
 mumbai_market_rs = mumbai_port_rs + freight_to_city
 
-st.markdown("### China Price Breakdown")
-st.markdown(f"**China landed price is: ₹ {mumbai_market_rs:.2f}/t**")
+st.markdown(f"<span style='color:#0E539A; font-weight:bold;'>China landed price is: ₹ {mumbai_market_rs:.2f}/t</span>", unsafe_allow_html=True)
 
 
 # --- Japan/Korea Landed Price Calculator ---
@@ -181,5 +180,4 @@ port_price_jp = landed_value_jp + sgd_jp + mip_jp + safeguard_duty_abs_jp
 mumbai_port_rs_jp = port_price_jp * exchange_rate_jp
 mumbai_market_rs_jp = mumbai_port_rs_jp + freight_to_city_jp
 
-st.markdown("### Japan Price Breakdown")
-st.markdown(f"**Japan landed price is: ₹ {mumbai_market_rs_jp:.2f}/t**")
+st.markdown(f"<span style='color:#C71585; font-weight:bold;'>Japan landed price is: ₹ {mumbai_market_rs_jp:.2f}/t</span>", unsafe_allow_html=True)
