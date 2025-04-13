@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 from datetime import datetime
-from forecast_utils import generate_forecast
-
 
 # Set page config
 st.set_page_config(page_title="HRC Price Forecast Dashboard", layout="wide")
@@ -31,59 +29,47 @@ china_var_forecast = df_var.set_index("Date")["HRC (FOB, $/t)_forecast"]
 china_actual = df_base["HRC (FOB, $/t)"]
 
 # --- Build Combined Data ---
-from forecast_utils import generate_forecast
-
 def build_combined_forecast(months_ahead, up_adj, down_adj):
     start_date = pd.to_datetime("2024-11-01")
     end_date = start_date + pd.DateOffset(months=months_ahead - 1)
 
+    # China Historical
     china_hist = china_actual[china_actual.index < start_date].to_frame(name="China HRC (FOB, $/t) Historical")
 
-    df_input = pd.read_csv("wo_na.csv", parse_dates=["Date"])  
-    forecast_df = generate_forecast(
-        df_input,
-        iron_ore_up=up_adj["Iron Ore"],
-        hcc_up=up_adj["HCC"],
-        scrap_up=up_adj["Scrap"],
-        export_perc_up=up_adj["Export"],
-        fai_up=up_adj["FAI"],
-        iron_ore_down=down_adj["Iron Ore"],
-        hcc_down=down_adj["HCC"],
-        scrap_down=down_adj["Scrap"],
-        export_perc_down=down_adj["Export"],
-        fai_down=down_adj["FAI"],
-        months_ahead=months_ahead
-    )
+    # Upside forecast (VAR-based with adjustments)
+    china_up = china_var_forecast[(china_var_forecast.index >= start_date) & (china_var_forecast.index <= end_date)]
+    for key, pct in up_adj.items():
+        if pct > 0:
+            china_up *= (1 + pct / 100)
+    china_up = china_up.to_frame(name="China Upside/Downside")
 
-    china_forecast = forecast_df["HRC (FOB, $/t)"].copy()
-    china_forecast.index = pd.date_range(start=start_date, periods=months_ahead, freq="MS")
-    china_forecast = china_forecast.to_frame(name="China HRC (FOB, $/t) Forecast")
+    # Downside forecast (MLR-based with adjustments)
+    china_down = china_mlr_forecast[(china_mlr_forecast.index >= start_date) & (china_mlr_forecast.index <= end_date)]
+    for key, pct in down_adj.items():
+        if pct > 0:
+            china_down *= (1 - pct / 100)
+    china_down = china_down.to_frame(name="China Downside")
 
-    china_downside = china_forecast * (1 - max(down_adj.values()) / 100)
-    china_downside.columns = ["China Upside/Downside"]
-
+    # Japan forecast adjusted by Iron Ore only
     japan_forecast = df_japan["Japan_HRC_f"]
     japan_hist = df_base["Japan HRC FOB"] if "Japan HRC FOB" in df_base.columns else None
-    japan_forecast = japan_forecast[(japan_forecast.index >= start_date) & (japan_forecast.index <= end_date)]
-    japan_forecast = japan_forecast * (1 + up_adj.get("Iron Ore", 0) / 100)
-    japan_forecast = japan_forecast.to_frame(name="Japan HRC (FOB, $/t) Forecast")
+    japan_up = japan_forecast[(japan_forecast.index >= start_date) & (japan_forecast.index <= end_date)]
+    japan_up = japan_up * (1 + up_adj.get("Iron Ore", 0) / 100)
+    japan_up = japan_up.to_frame(name="Japan Upside/Downside")
 
-
+    # Combine
     combined = pd.concat([
         china_hist,
-        china_forecast,
-        china_downside,
-        japan_forecast
+        china_up,
+        china_down,
+        japan_up
     ], axis=1)
 
     if japan_hist is not None:
-        japan_hist = japan_hist[japan_hist.index < start_date]
         combined = combined.join(japan_hist.to_frame(name="Japan HRC (FOB, $/t) Historical"), how="left")
 
     combined.reset_index(inplace=True)
-    combined.rename(columns={"index": "Date"}, inplace=True)
     return combined
-
 
 # --- Sidebar ---
 st.sidebar.header("Model Parameters")
@@ -203,20 +189,7 @@ selected_japan_fob = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0] if 
 st.subheader("🇮🇳 India Landed Price Calculator")
 
 st.markdown("**China Table**")
-
-if not selected_row.empty:
-    try:
-        val = selected_row["China HRC (FOB, $/t) Forecast"].values[0]
-        if pd.notna(val):
-            selected_china_fob = float(val)
-    except (KeyError, IndexError, ValueError):
-        pass
-try:
-        val = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0]
-        if pd.notna(val):
-            selected_japan_fob = float(val)
-    except (KeyError, IndexError, ValueError):
-        pass
+fob_china = st.number_input("HRC FOB China ($/t)", value=float(round(selected_china_fob, 2)))
 freight = st.number_input("Sea Freight ($/t)", value=30.0)
 customs_pct = st.number_input("Basic Customs Duty (%)", value=7.5)
 sgd = st.number_input("Applicable SGD ($/t)", value=0.0)
@@ -231,8 +204,18 @@ cif = cfr + insurance
 customs_absolute = cif * customs_pct / 100
 sws = customs_absolute * 0.10
 landed_value = cif + customs_absolute + sws
-safeguard_duty_pct = st.number_input("Safeguard Duty (%)", value=0.0)
-safeguard_duty_abs = landed_value * safeguard_duty_pct / 100
+if not selected_row.empty and "China HRC (FOB, $/t) Forecast" in selected_row.columns:
+    china_val = selected_row["China HRC (FOB, $/t) Forecast"].values[0]
+    selected_china_fob = float(china_val) if pd.notna(china_val) else 0.0
+else:
+    selected_china_fob = 0.0
+
+if not selected_row.empty and "Japan HRC (FOB, $/t) Forecast" in selected_row.columns:
+    japan_val = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0]
+    selected_japan_fob = float(japan_val) if pd.notna(japan_val) else 0.0
+else:
+    selected_japan_fob = 0.0
+
 port_price = landed_value + sgd + mip + safeguard_duty_abs
 mumbai_port_rs = port_price * exchange_rate
 mumbai_market_rs = mumbai_port_rs + freight_to_city
@@ -242,11 +225,7 @@ st.markdown(f"<span style='color:#0E539A; font-weight:bold;'>China landed price 
 
 # --- Japan/Korea Landed Price Calculator ---
 st.markdown("**Japan Table**")
-try:
-    fob_japan = st.number_input("HRC FOB Japan ($/t)", value=float(round(selected_japan_fob, 2)))
-except:
-    fob_japan = st.number_input("HRC FOB Japan ($/t)", value=0.0)
-
+fob_japan = st.number_input("HRC FOB Japan ($/t)", value=float(round(selected_japan_fob, 2)))
 freight_jp = st.number_input("Sea Freight (Japan) ($/t)", value=30.0)
 customs_pct_jp = st.number_input("Basic Customs Duty (Japan) (%)", value=0.0)
 sgd_jp = st.number_input("Applicable SGD (Japan) ($/t)", value=0.0)
