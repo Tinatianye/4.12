@@ -164,12 +164,20 @@ st.download_button(
     mime="text/csv"
 )
 
+available_months = combined_df[combined_df["Date"] >= "2024-11-01"]["Date"].dt.strftime("%Y-%m").unique().tolist()
+
+selected_month_str = st.selectbox("📅 Select Month for Landed Price Calculation", available_months, index=0)
+selected_month = pd.to_datetime(selected_month_str + "-01")
+selected_row = combined_df[combined_df["Date"] == selected_month]
+selected_china_fob = selected_row["China HRC (FOB, $/t) Forecast"].values[0] if not selected_row.empty else 0.0
+selected_japan_fob = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0] if not selected_row.empty else 0.0
+
 
 # --- India Landed Price Calculator ---
 st.subheader("🇮🇳 India Landed Price Calculator")
 
 st.markdown("**China Table**")
-fob_china = st.number_input("HRC FOB China ($/t)", value=500.0)
+fob_china = st.number_input("HRC FOB China ($/t)", value=float(round(selected_china_fob, 2)))
 freight = st.number_input("Sea Freight ($/t)", value=30.0)
 customs_pct = st.number_input("Basic Customs Duty (%)", value=7.5)
 sgd = st.number_input("Applicable SGD ($/t)", value=0.0)
@@ -195,7 +203,7 @@ st.markdown(f"<span style='color:#0E539A; font-weight:bold;'>China landed price 
 
 # --- Japan/Korea Landed Price Calculator ---
 st.markdown("**Japan Table**")
-fob_japan = st.number_input("HRC FOB Japan ($/t)", value=600.0)
+fob_japan = st.number_input("HRC FOB Japan ($/t)", value=float(round(selected_japan_fob, 2)))
 freight_jp = st.number_input("Sea Freight (Japan) ($/t)", value=30.0)
 customs_pct_jp = st.number_input("Basic Customs Duty (Japan) (%)", value=0.0)
 sgd_jp = st.number_input("Applicable SGD (Japan) ($/t)", value=0.0)
