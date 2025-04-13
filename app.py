@@ -19,54 +19,54 @@ china_mlr_forecast = df_mlr.set_index("Date")["HRC (FOB, $/t)_f"]
 china_var_forecast = df_var.set_index("Date")["HRC (FOB, $/t)_forecast"]
 china_actual = df_base["HRC (FOB, $/t)"]
 
-# --- Forecasting Function ---
-def create_forecast_region(region: str, scenario: str, months_ahead: int):
+# --- Build Combined Data ---
+def build_combined_forecast(months_ahead):
     start_date = pd.to_datetime("2024-11-01")
     end_date = start_date + pd.DateOffset(months=months_ahead - 1)
 
-    if region == "China":
-        forecast_series = china_mlr_forecast if scenario == "Downside" else china_var_forecast
-        label = "China HRC FOB"
-        actual_series = china_actual
-    else:
-        forecast_series = df_japan["Japan_HRC_f"]
-        label = "Japan HRC FOB"
-        actual_series = df_base["Japan HRC FOB"] if "Japan HRC FOB" in df_base.columns else None
+    # China
+    china_hist = china_actual[china_actual.index < start_date].to_frame(name="China HRC (FOB, $/t) Historical")
+    china_up = china_var_forecast[(china_var_forecast.index >= start_date) & (china_var_forecast.index <= end_date)].to_frame(name="China HRC (FOB, $/t) Forecast")
+    china_down = china_mlr_forecast[(china_mlr_forecast.index >= start_date) & (china_mlr_forecast.index <= end_date)].to_frame(name="China HRC (FOB, $/t) Downside")
 
-    forecast_period = forecast_series[(forecast_series.index >= start_date) & (forecast_series.index <= end_date)]
-    forecast_df = forecast_period.to_frame(name=label)
-    forecast_df.index.name = "Date"
+    # Japan (only forecast available)
+    japan_forecast = df_japan["Japan_HRC_f"]
+    japan_hist = df_base["Japan HRC FOB"] if "Japan HRC FOB" in df_base.columns else None
+    japan_up = japan_forecast[(japan_forecast.index >= start_date) & (japan_forecast.index <= end_date)].to_frame(name="Japan HRC (FOB, $/t) Forecast")
 
-    # Combine with actuals for continuity
-    if actual_series is not None:
-        actual_part = actual_series[actual_series.index < start_date].to_frame(name=label)
-        full_series = pd.concat([actual_part, forecast_df])
-    else:
-        full_series = forecast_df
+    # Combine
+    combined = pd.concat([
+        china_hist, 
+        china_up.rename(columns={"China HRC (FOB, $/t) Forecast": "China Upside/Downside"}),
+        china_down.rename(columns={"HRC (FOB, $/t)_f": "China Downside"}),
+        japan_up.rename(columns={"Japan_HRC_f": "Japan Upside/Downside"})
+    ], axis=1)
 
-    full_series["Landed (CIF)"] = full_series[label] + (50 if region == "China" else 60)
-    full_series.reset_index(inplace=True)
-    return full_series, label
+    if japan_hist is not None:
+        combined = combined.join(japan_hist.to_frame(name="Japan HRC (FOB, $/t) Historical"), how="left")
 
-# --- Sidebar Controls ---
+    combined.reset_index(inplace=True)
+    return combined
+
+# --- Sidebar ---
 st.sidebar.header("Options")
-region = st.sidebar.selectbox("Select Region", ["China", "Japan"])
-scenario = st.sidebar.selectbox("Select Scenario", ["Downside", "Upside"])
 months = st.sidebar.slider("Months ahead to forecast", min_value=3, max_value=18, value=12)
 
 # --- Title ---
-st.title("HRC Price Forecast Dashboard (2025)")
-st.markdown(f"**Region:** {region} &nbsp;&nbsp; **Scenario:** {scenario} &nbsp;&nbsp; **Horizon:** {months} months")
+st.title("Forecasting HRC Prices")
+st.markdown("### with Historical Data + Upside/Downside")
 
-# --- Forecast & Landed Price ---
-forecast_df, label = create_forecast_region(region, scenario, months)
+# --- Load and Transform Data ---
+combined_df = build_combined_forecast(months)
 
-melted = forecast_df.melt("Date", value_vars=[label, "Landed (CIF)"], var_name="Price Type", value_name="USD/ton")
-chart = alt.Chart(melted).mark_line(point=True).encode(
+melted = combined_df.melt("Date", var_name="Series", value_name="USD/ton")
+
+chart = alt.Chart(melted).mark_line().encode(
     x='Date:T',
     y=alt.Y('USD/ton:Q', title='Price (USD per ton)'),
-    color='Price Type:N'
-).properties(title=f"Forecasting HRC Prices with Historical Data + {scenario} Scenario")
+    color='Series:N',
+    strokeDash='Series:N'
+).properties(width=900, height=450)
 
 st.altair_chart(chart, use_container_width=True)
 
