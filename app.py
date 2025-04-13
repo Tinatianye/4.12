@@ -6,6 +6,15 @@ from datetime import datetime
 # Set page config
 st.set_page_config(page_title="HRC Price Forecast Dashboard", layout="wide")
 
+# --- Custom Dashboard Title ---
+st.markdown("""
+    <div style='text-align: center; padding: 1rem 0; background-color: #0E539A; color: white; border-radius: 8px;'>
+        <h1 style='margin-bottom: 0.3rem;'>HRC Price Predict Model Dashboard</h1>
+        <p style='font-size: 18px;'>For TATA Steel | Forecasting & Landed Cost Analytics</p>
+    </div>
+""", unsafe_allow_html=True)
+
+
 # --- Load Data ---
 df_base = pd.read_csv("wo_na.csv", parse_dates=["Date"])
 df_base.set_index("Date", inplace=True)
