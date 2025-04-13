@@ -154,7 +154,7 @@ mumbai_market_rs = mumbai_port_rs + freight_to_city
 st.markdown(f"**HRC Basic Landed @ Mumbai Market: ₹ {mumbai_market_rs:.2f}/t**")
 
 # --- Japan/Korea Landed Price Calculator ---
-st.markdown("**Japan/Korea Table**")
+st.markdown("**Japan Table**")
 fob_japan = st.number_input("HRC FOB Japan ($/t)", value=600.0)
 freight_jp = st.number_input("Sea Freight (Japan) ($/t)", value=30.0)
 customs_pct_jp = st.number_input("Basic Customs Duty (Japan) (%)", value=0.0)
@@ -178,7 +178,4 @@ mumbai_market_rs_jp = mumbai_port_rs_jp + freight_to_city_jp
 
 st.markdown(f"**Japan HRC Basic Landed @ Mumbai Market: ₹ {mumbai_market_rs_jp:.2f}/t**")
 
-# --- Footer ---
-st.markdown("---")
-st.markdown("Built by Ye Tian for TATA Steel, 2025.")
-forecast_series.index <= end_date
+
