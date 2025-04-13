@@ -204,12 +204,19 @@ st.subheader("🇮🇳 India Landed Price Calculator")
 
 st.markdown("**China Table**")
 
-
+if not selected_row.empty:
+    try:
+        val = selected_row["China HRC (FOB, $/t) Forecast"].values[0]
+        if pd.notna(val):
+            selected_china_fob = float(val)
+    except (KeyError, IndexError, ValueError):
+        pass
 try:
-    fob_china = st.number_input("HRC FOB China ($/t)", value=float(round(selected_china_fob, 2)))
-except:
-    fob_china = st.number_input("HRC FOB China ($/t)", value=0.0)
-
+        val = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0]
+        if pd.notna(val):
+            selected_japan_fob = float(val)
+    except (KeyError, IndexError, ValueError):
+        pass
 freight = st.number_input("Sea Freight ($/t)", value=30.0)
 customs_pct = st.number_input("Basic Customs Duty (%)", value=7.5)
 sgd = st.number_input("Applicable SGD ($/t)", value=0.0)
