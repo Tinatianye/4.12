@@ -146,6 +146,7 @@ line = alt.Chart(line_df).mark_line().encode(
 st.altair_chart(area_china + area_japan + line, use_container_width=True)
 
 # --- India Landed Price Calculator ---
+st.subheader("🇮🇳 India Landed Price Calculator")
 
 st.markdown("**China Table**")
 fob_china = st.number_input("HRC FOB China ($/t)", value=500.0)
@@ -196,4 +197,7 @@ mumbai_market_rs_jp = mumbai_port_rs_jp + freight_to_city_jp
 
 st.markdown(f"**Japan HRC Basic Landed @ Mumbai Market: ₹ {mumbai_market_rs_jp:.2f}/t**")
 
+# --- Footer ---
+st.markdown("---")
+st.markdown("Built by Ye Tian for TATA Steel, 2025.")
 
