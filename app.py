@@ -60,8 +60,11 @@ def build_combined_forecast(months_ahead, up_adj, down_adj):
         japan_hist = japan_hist[japan_hist.index < start_date]
         combined = combined.join(japan_hist.to_frame(name="Japan HRC (FOB, $/t) Historical"), how="left")
 
+   
+    combined.index.name = "Date"
     combined.reset_index(inplace=True)
     return combined
+
 
 
 # --- Sidebar ---
