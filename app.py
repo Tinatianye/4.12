@@ -6,25 +6,13 @@ from datetime import datetime
 # Set page config
 st.set_page_config(page_title="HRC Price Forecast Dashboard", layout="wide")
 
-
-from PIL import Image
-
-# --- Top Banner with Local TATA Logo ---
-tata_logo = Image.open("1566570068193.png")
-
-st.markdown("<br>", unsafe_allow_html=True)  # 添加空行更美观
-cols = st.columns([1, 6])
-with cols[0]:
-    st.image(tata_logo, width=80)  # 控制 logo 大小
-with cols[1]:
-    st.markdown("""
-        <div style='text-align: left; padding-top: 10px;'>
-            <h1 style='margin-bottom: 0.2rem;'>HRC Price Predict Model Dashboard</h1>
-            <p style='font-size: 17px; color: #666;'>For TATA Steel | Forecasting & Landed Cost Analytics</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-
+# --- Custom Dashboard Title ---
+st.markdown("""
+    <div style='text-align: center; padding: 1rem 0; background-color: #0E539A; color: white; border-radius: 8px;'>
+        <h1 style='margin-bottom: 0.3rem;'>HRC Price Predict Model Dashboard</h1>
+        <p style='font-size: 18px;'>For TATA Steel | Forecasting & Landed Cost Analytics</p>
+    </div>
+""", unsafe_allow_html=True)
 
 
 # --- Load Data ---
