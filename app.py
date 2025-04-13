@@ -203,24 +203,12 @@ selected_japan_fob = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0] if 
 st.subheader("🇮🇳 India Landed Price Calculator")
 
 st.markdown("**China Table**")
-selected_china_fob = 0.0
-selected_japan_fob = 0.0
 
-if not selected_row.empty:
-    try:
-        val = selected_row["China HRC (FOB, $/t) Forecast"].values[0]
-        if pd.notna(val):
-            selected_china_fob = float(val)
-    except (KeyError, IndexError, ValueError):
-        selected_china_fob = 0.0
 
-if not selected_row.empty:
-    try:
-        val = selected_row["Japan HRC (FOB, $/t) Forecast"].values[0]
-        if pd.notna(val):
-            selected_japan_fob = float(val)
-    except (KeyError, IndexError, ValueError):
-        selected_japan_fob = 0.0
+try:
+    fob_china = st.number_input("HRC FOB China ($/t)", value=float(round(selected_china_fob, 2)))
+except:
+    fob_china = st.number_input("HRC FOB China ($/t)", value=0.0)
 
 freight = st.number_input("Sea Freight ($/t)", value=30.0)
 customs_pct = st.number_input("Basic Customs Duty (%)", value=7.5)
@@ -247,7 +235,11 @@ st.markdown(f"<span style='color:#0E539A; font-weight:bold;'>China landed price 
 
 # --- Japan/Korea Landed Price Calculator ---
 st.markdown("**Japan Table**")
-fob_japan = st.number_input("HRC FOB Japan ($/t)", value=float(round(selected_japan_fob, 2)))
+try:
+    fob_japan = st.number_input("HRC FOB Japan ($/t)", value=float(round(selected_japan_fob, 2)))
+except:
+    fob_japan = st.number_input("HRC FOB Japan ($/t)", value=0.0)
+
 freight_jp = st.number_input("Sea Freight (Japan) ($/t)", value=30.0)
 customs_pct_jp = st.number_input("Basic Customs Duty (Japan) (%)", value=0.0)
 sgd_jp = st.number_input("Applicable SGD (Japan) ($/t)", value=0.0)
