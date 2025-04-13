@@ -106,44 +106,23 @@ st.markdown("### with Historical Data + Upside/Downside")
 # --- Load and Transform Data ---
 combined_df = build_combined_forecast(months, upside_adjustments, downside_adjustments)
 
-# Prepare shaded area for forecast range
+# Rename for clarity in chart
 combined_df.rename(columns={
-    "China Upside/Downside": "China Forecast Upper",
-    "China Downside": "China Forecast Lower",
-    "Japan Upside/Downside": "Japan Forecast Upper"
+    "China Upside/Downside": "China HRC (FOB, $/t) Forecast",
+    "China Downside": "China Upside/Downside",
+    "Japan Upside/Downside": "Japan HRC (FOB, $/t) Forecast"
 }, inplace=True)
 
-# Estimate Japan downside as slight negative offset (if needed)
-combined_df["Japan Forecast Lower"] = combined_df["Japan Forecast Upper"] * 0.98
+melted = combined_df.melt("Date", var_name="Series", value_name="USD/ton")
 
-# Prepare historical and forecast lines
-line_df = combined_df[["Date", "China HRC (FOB, $/t) Historical", "Japan HRC (FOB, $/t) Historical"]].copy()
-line_df = line_df.melt("Date", var_name="Series", value_name="USD/ton")
-
-# Prepare forecast intervals
-interval_df = combined_df[["Date", "China Forecast Upper", "China Forecast Lower", "Japan Forecast Upper", "Japan Forecast Lower"]].copy()
-
-# Altair chart
-import altair as alt
-base = alt.Chart(interval_df).encode(x='Date:T')
-
-area_china = base.mark_area(opacity=0.2, color='steelblue').encode(
-    y='China Forecast Lower:Q',
-    y2='China Forecast Upper:Q'
-)
-
-area_japan = base.mark_area(opacity=0.2, color='salmon').encode(
-    y='Japan Forecast Lower:Q',
-    y2='Japan Forecast Upper:Q'
-)
-
-line = alt.Chart(line_df).mark_line().encode(
+chart = alt.Chart(melted).mark_line().encode(
     x='Date:T',
     y=alt.Y('USD/ton:Q', title='Price (USD per ton)'),
-    color='Series:N'
-)
+    color='Series:N',
+    strokeDash='Series:N'
+).properties(width=900, height=450)
 
-st.altair_chart(area_china + area_japan + line, use_container_width=True)
+st.altair_chart(chart, use_container_width=True)
 
 # --- India Landed Price Calculator ---
 st.subheader("🇮🇳 India Landed Price Calculator")
